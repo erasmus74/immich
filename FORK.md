@@ -100,7 +100,31 @@ docker build -f machine-learning/Dockerfile \
 
 Run `immich-ml-captioned` on the GPU box and the same captioned image locally with the JoyCaption deny-list (Qwen3-VL runs on CPU). The stock upstream image has no captioning engines — caption requests return an error there.
 
-### AMD GPU (ROCm) deployment
+### Docker stack (preferred: on-demand, nothing runs idle)
+
+`docker/docker-compose.fork-amd.yml` builds the whole fork stack from this checkout — server+web from `server/Dockerfile`, ML from `machine-learning/Dockerfile` with `DEVICE=rocm`, `INSTALL_CAPTION=true`, `CAPTION_TORCH_INDEX=https://download.pytorch.org/whl/rocm7.2`, plus the upstream `hwaccel.ml.yml` ROCm device mapping (`/dev/kfd`, `/dev/dri`, group `video`).
+
+```bash
+cd docker
+cat > .env <<'ENV'
+UPLOAD_LOCATION=/path/to/immich-data
+DB_PASSWORD=postgres
+DB_USERNAME=postgres
+DB_DATABASE_NAME=immich
+TZ=Europe/Berlin
+ENV
+mkdir -p "$(grep UPLOAD_LOCATION .env | cut -d= -f2)"/{photos,postgres}
+
+docker compose -f docker-compose.fork-amd.yml up -d --build   # build once, start
+docker compose -f docker-compose.fork-amd.yml stop            # idle everything (data persists)
+docker compose -f docker-compose.fork-amd.yml stop immich-machine-learning  # free the GPU only
+docker compose -f docker-compose.fork-amd.yml start immich-machine-learning # GPU back
+docker compose -f docker-compose.fork-amd.yml down            # remove containers, keep volumes
+```
+
+Model downloads live in the `model-cache` volume and `UPLOAD_LOCATION/postgres` holds the DB, so stop/start is cheap. GPU utilisation is zero unless the ML container is running.
+
+### AMD GPU (ROCm) — bare metal alternative
 
 Verified on **Radeon RX 7900 XTX (gfx1100), ROCm 7.2, torch 2.14.1+rocm7.2**, 100–120-token captions, warm model: **Qwen3-VL-2B = 2.45 s** (34.7 s CPU), **JoyCaption alpha-two = 2.27 s** at 9.2 GB VRAM (4-bit nf4 via bitsandbytes ROCm backend). On 24 GB you can run both models resident.
 

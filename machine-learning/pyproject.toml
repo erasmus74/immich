@@ -58,10 +58,11 @@ cuda-libs = [
 ]
 
 [project.optional-dependencies]
-# the image captioning engines: Florence-2 (onnxruntime-genai or transformers) and JoyCaption (transformers);
-# transformers 4.x caps huggingface-hub below the 1.0 the core dependencies require, so this stays on 5.x
+# the image captioning engines: Qwen3-VL and JoyCaption through transformers (Florence-2 is refused:
+# its code requires transformers 4.x, which caps huggingface-hub below the 1.0 the core dependencies require).
+# onnxruntime-genai is deliberately absent: it pulls the plain onnxruntime, which collides with the
+# device-specific build (e.g. onnxruntime-migraphx) and hides its execution provider
 caption = [
-    "onnxruntime-genai>=0.6 ; platform_machine == 'x86_64'",
     "transformers>=5,<6",
     "torch>=2.4",
     "torchvision>=0.19",
