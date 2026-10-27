@@ -100,6 +100,38 @@ docker build -f machine-learning/Dockerfile \
 
 Run `immich-ml-captioned` on the GPU box and the same captioned image locally with the JoyCaption deny-list (Qwen3-VL runs on CPU). The stock upstream image has no captioning engines — caption requests return an error there.
 
+### AMD GPU (ROCm) deployment
+
+Verified on **Radeon RX 7900 XTX (gfx1100), ROCm 7.2, torch 2.14.1+rocm7.2**, 100–120-token captions, warm model: **Qwen3-VL-2B = 2.45 s** (34.7 s CPU), **JoyCaption alpha-two = 2.27 s** at 9.2 GB VRAM (4-bit nf4 via bitsandbytes ROCm backend). On 24 GB you can run both models resident.
+
+Build with the upstream ROCm device target plus the captioning extra and the matching PyTorch wheel index:
+
+```bash
+docker build -f machine-learning/Dockerfile   --build-arg DEVICE=rocm   --build-arg INSTALL_CAPTION=true   --build-arg CAPTION_TORCH_INDEX=https://download.pytorch.org/whl/rocm7.2   -t immich-ml-captioned-rocm:<ver> machine-learning
+```
+
+Compose:
+
+```yaml
+services:
+  immich-machine-learning:
+    image: immich-ml-captioned-rocm:<ver>
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add: [video, render]
+    environment:
+      MACHINE_LEARNING_DEVICE_ID: '0'
+```
+
+Notes:
+- `DEVICE=rocm` (the upstream build target) also installs `migraphx` + `miopen-hip`, so the ONNX models (CLIP, faces, OCR, duplicate detection) run on the GPU through `MIGraphXExecutionProvider` on top of the captioning engines.
+- Bare metal without the ROCm container: install `torch`/`torchvision` from the ROCm wheel index into the ML venv (the caption extra pulls the CUDA build by default), e.g.
+  `uv pip install --python .venv/bin/python torch==2.14.1+rocm7.2 torchvision==0.29.1+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2`.
+  Vision ONNX stays on CPU unless system MIGraphX libs (`libmigraphx_c.so.3`) are installed — CachyOS/Arch ships no `migraphx` package, so use the container for full-GPU vision.
+- `HSA_OVERRIDE_GFX_VERSION` is not needed for gfx1100 on ROCm 7.x.
+- Vulkan (RADV) is present but unused: the stack is torch-ROCm + ONNX, neither uses Vulkan.
+
 ### Admin config (Machine Learning Settings → Captioning)
 
 | Setting | Value | Notes |

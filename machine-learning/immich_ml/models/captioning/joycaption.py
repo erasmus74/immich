@@ -140,7 +140,8 @@ class JoyCaptionCaptioner(Captioner):
 
     def download(self) -> None:
         components = [
-            (self.repo_id, "adapter", ["image_adapter.pt"], "space"),
+            # the Space keeps the checkpoint in a versioned subfolder, so the pattern must match a prefix
+            (self.repo_id, "adapter", ["*image_adapter.pt"], "space"),
             (VISION_REPO, "vision", None, None),
             (self.llm_model, "llm", None, None),
         ]
@@ -195,13 +196,22 @@ class JoyCaptionCaptioner(Captioner):
         llm_kwargs: dict[str, Any] = {"dtype": dtype}
         if quantization is not None:
             llm_kwargs |= {"quantization_config": quantization, "device_map": {"": device}}
-        llm = auto_causal_lm.from_pretrained(self.model_dir / "llm", **llm_kwargs).eval()
+        try:
+            llm = auto_causal_lm.from_pretrained(self.model_dir / "llm", **llm_kwargs).eval()
+        except Exception as e:
+            if quantization is None:
+                raise
+            # ROCm or quantization backends without 4-bit support: run the LLM in half precision instead
+            log.warning(f"4-bit quantization unavailable for '{self.repo_id}' ({e}); loading in {dtype}")
+            quantization = None
+            llm = auto_causal_lm.from_pretrained(self.model_dir / "llm", dtype=dtype).eval()
         if quantization is None:
             llm = llm.to(device)
 
-        checkpoint: dict[str, Any] = torch.load(
-            self.model_dir / "adapter" / "image_adapter.pt", map_location="cpu", weights_only=True
-        )
+        adapter_files = sorted((self.model_dir / "adapter").rglob("image_adapter.pt"))
+        if not adapter_files:
+            raise RuntimeError(f"image adapter checkpoint of '{self.repo_id}' was not downloaded")
+        checkpoint: dict[str, Any] = torch.load(adapter_files[0], map_location="cpu", weights_only=True)
         missing = [name for name in _ADAPTER_TENSORS if name not in checkpoint]
         if missing:
             raise RuntimeError(f"image adapter checkpoint of '{self.repo_id}' is missing {missing}")

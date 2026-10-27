@@ -67,7 +67,8 @@ class QwenVLCaptioner(Captioner):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         dtype = torch.float16 if device == "cuda" else torch.float32
         source = self.model_dir if any(self.model_dir.glob("*")) else self.repo_id
-        log.info(f"Loading caption model '{self.repo_id}' on {device}")
+        runtime = getattr(torch.version, "hip", None) or getattr(torch.version, "cuda", None) or "cpu"
+        log.info(f"Loading caption model '{self.repo_id}' on {device} ({runtime})")
         # transformers exports these lazily, which mypy sees as untyped calls, so they are used through Any
         auto_processor: Any = AutoProcessor
         auto_model: Any = AutoModelForImageTextToText

@@ -72,6 +72,9 @@ ARG DEVICE
 # the default build leaves it out, and such an instance is meant to set
 # MACHINE_LEARNING_DISABLED_MODELS so the server falls through to one that captions
 ARG INSTALL_CAPTION="false"
+# AMD ROCm hosts: point at the matching PyTorch wheel index (e.g. https://download.pytorch.org/whl/rocm7.2)
+# so the captioning engines run on the GPU. Leave empty for CUDA/CPU hosts.
+ARG CAPTION_TORCH_INDEX=""
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     VIRTUAL_ENV=/opt/venv
@@ -84,7 +87,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     if [ "$INSTALL_CAPTION" = "true" ]; then caption_extra="--extra caption"; fi && \
     uv sync --frozen --extra ${DEVICE} ${caption_extra} --no-dev --no-editable --no-install-project --compile-bytecode --no-progress --active --link-mode copy && \
-    if [ "$DEVICE" = "openvino" ]; then uv pip install --no-deps /opt/onnxruntime_openvino-*.whl; fi
+    if [ "$DEVICE" = "openvino" ]; then uv pip install --no-deps /opt/onnxruntime_openvino-*.whl; fi && \
+    if [ "$INSTALL_CAPTION" = "true" ] && [ -n "$CAPTION_TORCH_INDEX" ]; then \
+    uv pip install --reinstall --index-url "$CAPTION_TORCH_INDEX" torch torchvision; fi
 
 FROM python:3.13-slim-trixie@sha256:cf50a4f6ac4f026458b08d5222023d700ac806410dff5e9ca8728fa44f2b850f AS prod-cpu
 
