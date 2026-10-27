@@ -40,6 +40,7 @@ describe('AssetService', () => {
       queryClient.setQueryData(getUserConfigQuery().queryKey, {
         machineLearning: {
           enabled: false,
+          captioning: { enabled: false },
           clip: { enabled: false },
           duplicateDetection: { enabled: false },
           facialRecognition: { enabled: false },

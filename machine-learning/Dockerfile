@@ -68,6 +68,10 @@ FROM rocm/dev-ubuntu-24.04:7.2-complete@sha256:86e11093b4a7ec2a79b1b6701d10e840a
 FROM builder-${DEVICE} AS builder
 
 ARG DEVICE
+# set INSTALL_CAPTION=true to also install the captioning extra (the Qwen3-VL / JoyCaption engines);
+# the default build leaves it out, and such an instance is meant to set
+# MACHINE_LEARNING_DISABLED_MODELS so the server falls through to one that captions
+ARG INSTALL_CAPTION="false"
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     VIRTUAL_ENV=/opt/venv
@@ -78,7 +82,8 @@ COPY --from=ghcr.io/astral-sh/uv:0.8.15@sha256:a5727064a0de127bdb7c9d3c1383f3a9a
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --extra ${DEVICE} --no-dev --no-editable --no-install-project --compile-bytecode --no-progress --active --link-mode copy && \
+    if [ "$INSTALL_CAPTION" = "true" ]; then caption_extra="--extra caption"; fi && \
+    uv sync --frozen --extra ${DEVICE} ${caption_extra} --no-dev --no-editable --no-install-project --compile-bytecode --no-progress --active --link-mode copy && \
     if [ "$DEVICE" = "openvino" ]; then uv pip install --no-deps /opt/onnxruntime_openvino-*.whl; fi
 
 FROM python:3.13-slim-trixie@sha256:cf50a4f6ac4f026458b08d5222023d700ac806410dff5e9ca8728fa44f2b850f AS prod-cpu

@@ -179,4 +179,8 @@ def get_model_source(model_name: str) -> ModelSource | None:
     if cleaned_name in _PADDLE_MODELS:
         return ModelSource.PADDLE
 
+    # caption models address plain HuggingFace repos as org/name, which none of the sets above match
+    if model_name.count("/") == 1:
+        return ModelSource.HUGGINGFACE
+
     return None

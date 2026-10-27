@@ -165,6 +165,7 @@ export type AdminConfigJobSettingsDto = {
 };
 export type AdminConfigJobDto = {
     backgroundTask: AdminConfigJobSettingsDto;
+    captioning: AdminConfigJobSettingsDto;
     editor: AdminConfigJobSettingsDto;
     faceDetection: AdminConfigJobSettingsDto;
     integrityCheck: AdminConfigJobSettingsDto;
@@ -205,6 +206,20 @@ export type AdminConfigMachineLearningAvailabilityChecksDto = {
     interval: number;
     timeout: number;
 };
+export type AdminConfigCaptioningDto = {
+    /** Weight of the caption embedding when blending with the image embedding */
+    embeddingWeight: number;
+    /** Whether the task is enabled */
+    enabled: boolean;
+    /** Fallback model to use if the primary model fails, empty to disable */
+    fallbackModel: string;
+    /** Maximum number of tokens to generate */
+    maxTokens: number;
+    /** Name of the model to use */
+    modelName: string;
+    /** Prompt for the captioning model, empty to use the engine default */
+    prompt: string;
+};
 export type AdminConfigClipDto = {
     /** Whether the task is enabled */
     enabled: boolean;
@@ -243,6 +258,7 @@ export type AdminConfigOcrDto = {
 };
 export type AdminConfigMachineLearningDto = {
     availabilityChecks: AdminConfigMachineLearningAvailabilityChecksDto;
+    captioning: AdminConfigCaptioningDto;
     clip: AdminConfigClipDto;
     duplicateDetection: AdminConfigDuplicateDetectionDto;
     /** Enabled */
@@ -1574,6 +1590,10 @@ export type UserConfigImageDto = {
     preview: UserConfigGeneratedImageDto;
     thumbnail: UserConfigGeneratedImageDto;
 };
+export type UserConfigCaptioningDto = {
+    /** Whether the task is enabled */
+    enabled: boolean;
+};
 export type UserConfigClipDto = {
     /** Whether the task is enabled */
     enabled: boolean;
@@ -1593,6 +1613,7 @@ export type UserConfigOcrDto = {
     enabled: boolean;
 };
 export type UserConfigMachineLearningDto = {
+    captioning: UserConfigCaptioningDto;
     clip: UserConfigClipDto;
     duplicateDetection: UserConfigDuplicateDetectionDto;
     /** Enabled */
@@ -1791,6 +1812,7 @@ export type QueueResponseLegacyDto = {
 export type QueuesResponseLegacyDto = {
     backgroundTask: QueueResponseLegacyDto;
     backupDatabase: QueueResponseLegacyDto;
+    captioning: QueueResponseLegacyDto;
     duplicateDetection: QueueResponseLegacyDto;
     editor: QueueResponseLegacyDto;
     faceDetection: QueueResponseLegacyDto;
@@ -2315,6 +2337,9 @@ export type IdsFilter = {
     "any"?: string[];
     none?: string[];
 };
+export type StringSimilarityFilter = {
+    matches: string;
+};
 export type StringFilter = {
     eq?: string;
     "in"?: string[];
@@ -2366,9 +2391,6 @@ export type IdFilterNullable = {
     eq?: string | null;
     ne?: string | null;
 };
-export type StringSimilarityFilter = {
-    matches: string;
-};
 export type NumberFilterNullable = {
     eq?: number | null;
     gt?: number;
@@ -2401,6 +2423,7 @@ export type EnumFilterAssetVisibility = {
 };
 export type SearchFilterBranch = {
     albumIds?: IdsFilter;
+    caption?: StringSimilarityFilter;
     checksum?: StringFilter;
     city?: StringFilterNullable;
     country?: StringFilterNullable;
@@ -2435,6 +2458,7 @@ export type SearchFilterBranch = {
 };
 export type SearchFilter = {
     albumIds?: IdsFilter;
+    caption?: StringSimilarityFilter;
     checksum?: StringFilter;
     city?: StringFilterNullable;
     country?: StringFilterNullable;
@@ -2475,6 +2499,8 @@ export type SearchOrder = {
 export type MetadataSearchDto = {
     /** Filter by album IDs */
     albumIds?: string[];
+    /** Filter by caption text */
+    caption?: string;
     /** Filter by file checksum */
     checksum?: string;
     /** Filter by city name */
@@ -2610,6 +2636,8 @@ export type PlacesResponseDto = {
 export type RandomSearchDto = {
     /** Filter by album IDs */
     albumIds?: string[];
+    /** Filter by caption text */
+    caption?: string;
     /** Filter by city name */
     city?: string | null;
     /** Filter by country name */
@@ -2675,6 +2703,8 @@ export type RandomSearchDto = {
 export type SmartSearchDto = {
     /** Filter by album IDs */
     albumIds?: string[];
+    /** Filter by caption text */
+    caption?: string;
     /** Filter by city name */
     city?: string | null;
     /** Filter by country name */
@@ -2744,6 +2774,8 @@ export type SmartSearchDto = {
 export type StatisticsSearchDto = {
     /** Filter by album IDs */
     albumIds?: string[];
+    /** Filter by caption text */
+    caption?: string;
     /** Filter by city name */
     city?: string | null;
     /** Filter by country name */
@@ -6728,8 +6760,9 @@ export function getExploreData(opts?: Oazapfts.RequestOpts) {
 /**
  * Search large assets
  */
-export function searchLargeAssets({ albumIds, city, country, createdAfter, createdBefore, isEncoded, isFavorite, isMotion, isNotInAlbum, isOffline, lensModel, libraryId, make, minFileSize, model, ocr, personIds, rating, size, state, tagIds, takenAfter, takenBefore, trashedAfter, trashedBefore, $type, updatedAfter, updatedBefore, visibility, withDeleted, withExif }: {
+export function searchLargeAssets({ albumIds, caption, city, country, createdAfter, createdBefore, isEncoded, isFavorite, isMotion, isNotInAlbum, isOffline, lensModel, libraryId, make, minFileSize, model, ocr, personIds, rating, size, state, tagIds, takenAfter, takenBefore, trashedAfter, trashedBefore, $type, updatedAfter, updatedBefore, visibility, withDeleted, withExif }: {
     albumIds?: string[];
+    caption?: string;
     city?: string | null;
     country?: string | null;
     createdAfter?: string;
@@ -6766,6 +6799,7 @@ export function searchLargeAssets({ albumIds, city, country, createdAfter, creat
         data: AssetResponseDto[];
     }>(`/search/large-assets${QS.query(QS.explode({
         albumIds,
+        caption,
         city,
         country,
         createdAfter,
@@ -8564,6 +8598,7 @@ export enum QueueName {
     Notifications = "notifications",
     BackupDatabase = "backupDatabase",
     Ocr = "ocr",
+    Captioning = "captioning",
     Workflow = "workflow",
     IntegrityCheck = "integrityCheck",
     Editor = "editor"
@@ -8667,6 +8702,8 @@ export enum JobName {
     VersionCheck = "VersionCheck",
     OcrQueueAll = "OcrQueueAll",
     Ocr = "Ocr",
+    CaptionQueueAll = "CaptionQueueAll",
+    Caption = "Caption",
     WorkflowAssetTrigger = "WorkflowAssetTrigger",
     IntegrityUntrackedFilesQueueAll = "IntegrityUntrackedFilesQueueAll",
     IntegrityUntrackedFiles = "IntegrityUntrackedFiles",

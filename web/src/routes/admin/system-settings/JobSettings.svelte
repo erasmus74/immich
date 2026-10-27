@@ -28,6 +28,7 @@
     QueueName.StorageTemplateMigration,
     QueueName.Migration,
     QueueName.Ocr,
+    QueueName.Captioning,
   ];
 
   function isSystemConfigJobDto(jobName: string): jobName is keyof AdminConfigJobDto {
@@ -51,6 +52,7 @@
     [QueueName.Notifications]: $t('notifications'),
     [QueueName.BackupDatabase]: $t('admin.backup_database'),
     [QueueName.Ocr]: $t('admin.machine_learning_ocr'),
+    [QueueName.Captioning]: $t('admin.machine_learning_captioning'),
     [QueueName.Workflow]: $t('workflows'),
     [QueueName.Editor]: $t('editor'),
     [QueueName.IntegrityCheck]: $t('integrity_checks'),

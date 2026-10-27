@@ -66,6 +66,7 @@ describe('AssetViewerNavBar component', () => {
       queryClient.setQueryData(getUserConfigQuery().queryKey, {
         machineLearning: {
           enabled: true,
+          captioning: { enabled: true },
           clip: { enabled: true },
           duplicateDetection: { enabled: true },
           facialRecognition: { enabled: true },

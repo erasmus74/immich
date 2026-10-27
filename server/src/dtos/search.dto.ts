@@ -65,6 +65,7 @@ const BaseSearchSchema = z.object({
       deprecated: true,
     }),
   ocr: z.string().optional().describe('Filter by OCR text content').meta(DEPRECATED_FLAT_FIELD),
+  caption: z.string().optional().describe('Filter by caption text').meta(DEPRECATED_FLAT_FIELD),
 });
 
 const BaseSearchWithResultsSchema = BaseSearchSchema.extend({
@@ -266,6 +267,7 @@ const searchFilterBranchShape = {
   originalFileName: StringPatternFilterSchema,
   originalPath: StringPatternFilterSchema,
   ocr: StringSimilarityFilterSchema,
+  caption: StringSimilarityFilterSchema,
   rating: NumberFilterNullableSchema,
   fileSizeInBytes: NumberFilterSchema,
   takenAt: DateFilterSchema,

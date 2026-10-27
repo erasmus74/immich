@@ -9,6 +9,7 @@ import { AssetFileRepository } from 'src/repositories/asset-file.repository.js';
 import { AssetJobRepository } from 'src/repositories/asset-job.repository.js';
 import { AssetRepository } from 'src/repositories/asset.repository.js';
 import { AuthChallengeRepository } from 'src/repositories/auth-challenge.repository.js';
+import { CaptionRepository } from 'src/repositories/caption.repository.js';
 import { ClusterGroupRepository } from 'src/repositories/cluster-group.repository.js';
 import { ConfigRepository } from 'src/repositories/config.repository.js';
 import { CronRepository } from 'src/repositories/cron.repository.js';
@@ -70,6 +71,7 @@ export const repositories = [
   AssetFileRepository,
   AssetJobRepository,
   AuthChallengeRepository,
+  CaptionRepository,
   ConfigRepository,
   CronRepository,
   CryptoRepository,

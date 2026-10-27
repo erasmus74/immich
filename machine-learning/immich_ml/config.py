@@ -78,6 +78,9 @@ class Settings(BaseSettings):
     max_batch_size: MaxBatchSize = MaxBatchSize()
     model_organization: ModelOrganization = ModelOrganization.APP
     model_revision: str = "main"
+    # comma-separated model names or 'org/prefix*' globs this instance refuses to run, so the server
+    # falls through to its next machine-learning URL on hybrid deployments
+    disabled_models: str | None = None
 
     @property
     def legacy_models(self) -> bool:

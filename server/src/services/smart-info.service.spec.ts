@@ -4,7 +4,15 @@ import { SmartInfoService } from 'src/services/smart-info.service.js';
 import { getCLIPModelInfo } from 'src/utils/misc.js';
 import { AssetFactory } from 'test/factories/asset.factory.js';
 import { systemConfigStub } from 'test/fixtures/system-config.stub.js';
+import { newUuid } from 'test/small.factory.js';
 import { ServiceMocks, makeStream, newTestService } from 'test/utils.js';
+
+function setupAsset(mocks: ServiceMocks, embedding = '[3, 4]') {
+  const asset = AssetFactory.from().file({ type: AssetFileType.Preview }).build();
+  mocks.assetJob.getForClipEncoding.mockResolvedValue(asset);
+  mocks.machineLearning.encodeImage.mockResolvedValue(embedding);
+  return asset;
+}
 
 describe(SmartInfoService.name, () => {
   let sut: SmartInfoService;
@@ -246,6 +254,126 @@ describe(SmartInfoService.name, () => {
         expect.objectContaining({ modelName: 'ViT-B-32__openai' }),
       );
       expect(mocks.search.upsert).toHaveBeenCalledWith(asset.id, '[0.01, 0.02, 0.03]');
+    });
+
+    describe('caption blending', () => {
+      const captioning = {
+        enabled: true,
+        modelName: 'microsoft/Florence-2-base',
+        fallbackModel: '',
+        prompt: '',
+        maxTokens: 120,
+        embeddingWeight: 0.3,
+      };
+
+      function mockCaptioning(embeddingWeight: number) {
+        mocks.systemMetadata.get.mockResolvedValue({
+          machineLearning: {
+            clip: { enabled: true, modelName: 'ViT-B-32__openai' },
+            captioning: { ...captioning, embeddingWeight },
+          },
+        } as SystemConfig);
+      }
+
+      it('should blend the caption embedding into the image embedding', async () => {
+        mockCaptioning(0.3);
+        const asset = setupAsset(mocks);
+        mocks.machineLearning.encodeText.mockResolvedValue('[1, 0]');
+        mocks.caption.getByAssetId.mockResolvedValue({
+          assetId: asset.id,
+          text: 'a candid photo',
+          searchText: 'candid photo',
+          model: 'microsoft/Florence-2-base',
+          updatedAt: new Date(),
+          updateId: newUuid(),
+        });
+
+        expect(await sut.handleEncodeClip({ id: asset.id })).toEqual(JobStatus.Success);
+
+        expect(mocks.caption.getByAssetId).toHaveBeenCalledWith(asset.id);
+        expect(mocks.machineLearning.encodeText).toHaveBeenCalledWith('a candid photo', {
+          modelName: 'ViT-B-32__openai',
+        });
+
+        const [, embedding] = mocks.search.upsert.mock.calls[0] as [string, string];
+        const values = JSON.parse(embedding) as number[];
+        const norm = Math.hypot(2.4, 2.8);
+        expect(values[0]).toBeCloseTo(2.4 / norm, 12);
+        expect(values[1]).toBeCloseTo(2.8 / norm, 12);
+        expect(values.reduce((sum, value) => sum + value * value, 0)).toBeCloseTo(1, 12);
+      });
+
+      it('should store the exact normalized blend', async () => {
+        mockCaptioning(0.5);
+        const asset = setupAsset(mocks);
+        mocks.machineLearning.encodeText.mockResolvedValue('[0, 0]');
+        mocks.caption.getByAssetId.mockResolvedValue({
+          assetId: asset.id,
+          text: 'a photo',
+          searchText: 'photo',
+          model: 'microsoft/Florence-2-base',
+          updatedAt: new Date(),
+          updateId: newUuid(),
+        });
+
+        expect(await sut.handleEncodeClip({ id: asset.id })).toEqual(JobStatus.Success);
+
+        expect(mocks.search.upsert).toHaveBeenCalledWith(asset.id, '[0.6,0.8]');
+      });
+
+      it('should store the image embedding when no caption exists', async () => {
+        mockCaptioning(0.3);
+        const asset = setupAsset(mocks);
+        mocks.caption.getByAssetId.mockResolvedValue(void 0);
+
+        expect(await sut.handleEncodeClip({ id: asset.id })).toEqual(JobStatus.Success);
+
+        expect(mocks.machineLearning.encodeText).not.toHaveBeenCalled();
+        expect(mocks.search.upsert).toHaveBeenCalledWith(asset.id, '[3, 4]');
+      });
+
+      it('should not blend when captioning is disabled', async () => {
+        const asset = setupAsset(mocks);
+        mocks.systemMetadata.get.mockResolvedValue({
+          machineLearning: {
+            clip: { enabled: true, modelName: 'ViT-B-32__openai' },
+            captioning: { ...captioning, enabled: false },
+          },
+        } as SystemConfig);
+
+        expect(await sut.handleEncodeClip({ id: asset.id })).toEqual(JobStatus.Success);
+
+        expect(mocks.caption.getByAssetId).not.toHaveBeenCalled();
+        expect(mocks.search.upsert).toHaveBeenCalledWith(asset.id, '[3, 4]');
+      });
+
+      it('should store the image embedding if reading the caption fails', async () => {
+        mockCaptioning(0.3);
+        const asset = setupAsset(mocks);
+        mocks.caption.getByAssetId.mockRejectedValue(new Error('read failed'));
+
+        expect(await sut.handleEncodeClip({ id: asset.id })).toEqual(JobStatus.Success);
+
+        expect(mocks.search.upsert).toHaveBeenCalledWith(asset.id, '[3, 4]');
+      });
+
+      it('should store the image embedding if text encoding fails', async () => {
+        mockCaptioning(0.3);
+        const asset = setupAsset(mocks);
+        mocks.caption.getByAssetId.mockResolvedValue({
+          assetId: asset.id,
+          text: 'a photo',
+          searchText: 'photo',
+          model: 'microsoft/Florence-2-base',
+          updatedAt: new Date(),
+          updateId: newUuid(),
+        });
+        mocks.machineLearning.encodeText.mockRejectedValue(new Error('encode failed'));
+
+        expect(await sut.handleEncodeClip({ id: asset.id })).toEqual(JobStatus.Success);
+
+        expect(mocks.search.upsert).toHaveBeenCalledWith(asset.id, '[3, 4]');
+      });
     });
   });
 

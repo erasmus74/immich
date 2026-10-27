@@ -30,6 +30,7 @@ import { AssetFileRepository } from 'src/repositories/asset-file.repository.js';
 import { AssetJobRepository } from 'src/repositories/asset-job.repository.js';
 import { AssetRepository } from 'src/repositories/asset.repository.js';
 import { AuthChallengeRepository } from 'src/repositories/auth-challenge.repository.js';
+import { CaptionRepository } from 'src/repositories/caption.repository.js';
 import { ClusterGroupRepository } from 'src/repositories/cluster-group.repository.js';
 import { ConfigRepository } from 'src/repositories/config.repository.js';
 import { CronRepository } from 'src/repositories/cron.repository.js';
@@ -250,6 +251,7 @@ export type ServiceOverrides = {
   assetFile: AssetFileRepository;
   assetJob: AssetJobRepository;
   authChallenge: AuthChallengeRepository;
+  caption: CaptionRepository;
   clusterGroup: ClusterGroupRepository;
   config: ConfigRepository;
   cron: CronRepository;
@@ -340,6 +342,7 @@ export const getMocks = () => {
     assetFile: automock(AssetFileRepository),
     assetJob: automock(AssetJobRepository),
     authChallenge: automock(AuthChallengeRepository),
+    caption: automock(CaptionRepository, { strict: false }),
     clusterGroup: automock(ClusterGroupRepository),
     app: automock(AppRepository, { strict: false }),
     config: newConfigRepositoryMock(),
@@ -419,6 +422,7 @@ export const newTestService = <T extends BaseService>(
     overrides.assetFile || (mocks.assetFile as As<AssetFileRepository>),
     overrides.assetJob || (mocks.assetJob as As<AssetJobRepository>),
     overrides.authChallenge || (mocks.authChallenge as As<AuthChallengeRepository>),
+    overrides.caption || (mocks.caption as As<CaptionRepository>),
     overrides.clusterGroup || (mocks.clusterGroup as As<ClusterGroupRepository>),
     overrides.config || (mocks.config as As<ConfigRepository> as ConfigRepository),
     overrides.cron || (mocks.cron as As<CronRepository>),

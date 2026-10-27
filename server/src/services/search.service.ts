@@ -31,6 +31,9 @@ import { isSmartSearchEnabled } from 'src/utils/misc.js';
 import { decodeSearchCursor, encodeSearchCursor } from 'src/utils/search-cursor.js';
 import { applyLockedVisibilityPolicy, collectFilterIds } from 'src/utils/search-filter.js';
 
+const MAX_PERSON_MATCHES = 5;
+const MIN_QUERY_LENGTH = 3;
+
 @Injectable()
 export class SearchService extends BaseService {
   private embeddingCache = new LRUMap<string, string>(100);
@@ -180,13 +183,16 @@ export class SearchService extends BaseService {
     }
 
     const userIds = this.getUserIdsToSearch(auth, dto.visibility);
-    const embedding = await this.resolveEmbedding(auth, dto, machineLearning);
+    const { query, personIds } = await this.resolvePersonFilter(auth.user.id, dto, dto.personIds !== undefined);
+    const embedding = await this.resolveEmbedding(auth, { ...dto, query }, machineLearning);
     const page = dto.page ?? 1;
     const size = dto.size;
     const { hasNextPage, items } = await this.searchRepository.searchSmart(
       { page, size },
       {
         ...dto,
+        ...(query !== undefined && { query }),
+        ...(personIds.length > 0 && { personIds }),
         userIds: await userIds,
         viewingUserId: auth.user.id,
         embedding,
@@ -284,10 +290,12 @@ export class SearchService extends BaseService {
       throw new BadRequestException('Smart search is not enabled');
     }
 
-    const [{ filter, scope }, embedding] = await Promise.all([
+    const { query, personIds } = await this.resolvePersonFilter(auth.user.id, dto, dto.filter?.personIds !== undefined);
+    const [{ filter: resolvedFilter, scope }, embedding] = await Promise.all([
       this.resolveSearchScopeV3(auth, dto),
-      this.resolveEmbedding(auth, dto, machineLearning),
+      this.resolveEmbedding(auth, { ...dto, query }, machineLearning),
     ]);
+    const filter = personIds.length > 0 ? { ...resolvedFilter, personIds: { any: personIds } } : resolvedFilter;
 
     // no cursor until a rank-aware pagination strategy for smart search is decided
     const { items } = await this.searchRepository.searchSmartV3(
@@ -351,6 +359,79 @@ export class SearchService extends BaseService {
     }
 
     throw new BadRequestException('Either `query` or `queryAssetId` must be set');
+  }
+
+  private async resolvePersonFilter(
+    userId: string,
+    dto: SmartSearchDto,
+    hasExplicitPersonIds: boolean,
+  ): Promise<{ query: string | undefined; personIds: string[] }> {
+    if (!dto.query || hasExplicitPersonIds) {
+      return { query: dto.query, personIds: [] };
+    }
+
+    const names = (await this.personRepository.getDistinctNames(userId, { withHidden: false })) ?? [];
+    const matches = dto.query.matchAll(/[\p{L}\p{N}]+/gu).toArray();
+    const tokens = matches.map((match) => match[0].toLowerCase());
+    const candidates = names
+      .filter(({ name }) => name.replaceAll(/\s/g, '').length >= MIN_QUERY_LENGTH)
+      .map(({ name }) => ({
+        name,
+        nameTokens: name
+          .matchAll(/[\p{L}\p{N}]+/gu)
+          .map((match) => match[0].toLowerCase())
+          .toArray(),
+      }))
+      .filter(({ nameTokens }) => nameTokens.length > 0 && nameTokens.length <= tokens.length)
+      .sort((a, b) => b.nameTokens.length - a.nameTokens.length || a.name.localeCompare(b.name));
+
+    const matchedNames: string[] = [];
+    const consumed = new Set<number>();
+    for (const { name, nameTokens } of candidates) {
+      if (matchedNames.length >= MAX_PERSON_MATCHES) {
+        break;
+      }
+
+      for (let i = 0; i + nameTokens.length <= tokens.length; i++) {
+        if (!consumed.has(i) && nameTokens.every((token, j) => !consumed.has(i + j) && tokens[i + j] === token)) {
+          for (let j = 0; j < nameTokens.length; j++) {
+            consumed.add(i + j);
+          }
+          matchedNames.push(name);
+          break;
+        }
+      }
+    }
+
+    const personIds: string[] = [];
+    for (const name of matchedNames) {
+      const people = (await this.personRepository.getByName(userId, name, { withHidden: false })) ?? [];
+      for (const person of people) {
+        if (person.name.toLowerCase() === name.toLowerCase() && !personIds.includes(person.personGroupId)) {
+          personIds.push(person.personGroupId);
+        }
+      }
+    }
+
+    return { query: this.stripMatchedQuery(dto.query, matches, consumed), personIds };
+  }
+
+  private stripMatchedQuery(query: string, matches: RegExpMatchArray[], consumed: Set<number>): string {
+    if (consumed.size === 0) {
+      return query;
+    }
+
+    let stripped = '';
+    let position = 0;
+    for (const index of [...consumed].sort((a, b) => a - b)) {
+      const match = matches[index]!;
+      stripped += query.slice(position, match.index);
+      position = match.index! + match[0].length;
+    }
+    stripped += query.slice(position);
+    stripped = stripped.replaceAll(/\s+/g, ' ').trim();
+
+    return stripped.length >= MIN_QUERY_LENGTH ? stripped : query;
   }
 
   private async getUserIdsToSearch(auth: AuthDto, visibility?: AssetVisibility): Promise<string[]> {

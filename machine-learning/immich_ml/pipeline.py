@@ -5,6 +5,10 @@ from typing import Annotated, Any
 from pydantic import ConfigDict, Field, with_config
 
 from .models.base import InferenceEntry, InferenceModel
+from .models.captioning.base import Captioner
+from .models.captioning.florence2 import Florence2Captioner
+from .models.captioning.joycaption import JoyCaptionCaptioner
+from .models.captioning.qwen import QwenVLCaptioner
 from .models.clip.textual import BaseCLIPTextualEncoder, MClipTextualEncoder, OpenClipTextualEncoder
 from .models.clip.visual import OpenClipVisualEncoder
 from .models.constants import get_model_source
@@ -13,6 +17,7 @@ from .models.facial_recognition.recognition import FaceRecognizer
 from .models.ocr.detection import TextDetector
 from .models.ocr.recognition import TextRecognizer
 from .schemas import (
+    CaptionOptions,
     FaceDetectionOptions,
     FaceRecognitionOptions,
     ModelSource,
@@ -28,6 +33,17 @@ STRICT = ConfigDict(extra="forbid")
 
 def textual(model_name: str) -> type[BaseCLIPTextualEncoder]:
     return MClipTextualEncoder if get_model_source(model_name) == ModelSource.MCLIP else OpenClipTextualEncoder
+
+
+def captioning(model_name: str) -> type[Captioner]:
+    """The repo name picks the engine, case-insensitively: 'joy' runs JoyCaption, 'florence' is refused
+    (Florence-2 needs transformers 4.x), and everything else, Qwen repos included, runs QwenVL."""
+    name = model_name.lower()
+    if "joy" in name:
+        return JoyCaptionCaptioner
+    if "florence" in name:
+        return Florence2Captioner
+    return QwenVLCaptioner
 
 
 @with_config(STRICT)
@@ -69,6 +85,7 @@ class PipelineRequest:
         default_factory=FacialRecognition
     )
     ocr: Ocr = field(default_factory=Ocr)
+    caption: Slot[CaptionOptions] | None = None
 
     def entries(self) -> Iterator[InferenceEntry[Any]]:
         if (visual := self.clip.visual) is not None:
@@ -83,3 +100,5 @@ class PipelineRequest:
             yield boxes.entry(TextDetector)
         if (reading := self.ocr.recognition) is not None:
             yield reading.entry(TextRecognizer)
+        if (caption := self.caption) is not None:
+            yield caption.entry(captioning(caption.model_name))

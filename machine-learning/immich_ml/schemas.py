@@ -24,6 +24,7 @@ class ModelTask(StrEnum):
     FACIAL_RECOGNITION = "facial-recognition"
     SEARCH = "clip"
     OCR = "ocr"
+    CAPTION = "caption"
 
 
 class ModelType(StrEnum):
@@ -31,6 +32,7 @@ class ModelType(StrEnum):
     RECOGNITION = "recognition"
     TEXTUAL = "textual"
     VISUAL = "visual"
+    CAPTION = "caption"
 
 
 class ModelFormat(StrEnum):
@@ -44,6 +46,7 @@ class ModelSource(StrEnum):
     MCLIP = "mclip"
     OPENCLIP = "openclip"
     PADDLE = "paddle"
+    HUGGINGFACE = "huggingface"
 
 
 class ModelOrganization(StrEnum):
@@ -155,6 +158,15 @@ class TextDetectionOptions(Options):
 @dataclass(frozen=True)
 class TextRecognitionOptions(Options):
     min_score: Annotated[float, Field(alias="minScore")] = 0.9
+
+
+@dataclass(frozen=True)
+class CaptionOptions(Options):
+    __pydantic_config__ = ConfigDict(extra="forbid")  # a typo should not silently change the caption
+
+    prompt: str | None = None
+    max_new_tokens: Annotated[int, Field(alias="maxNewTokens")] = 120
+    llm_model: Annotated[str | None, Field(alias="llmModel")] = None  # JoyCaption: which LLM writes the caption
 
 
 InferenceResponse = dict[str, Any]

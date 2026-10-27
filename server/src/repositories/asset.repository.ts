@@ -365,6 +365,7 @@ export class AssetRepository {
         oc.column('assetId').doUpdateSet((eb) =>
           removeUndefinedKeys(
             {
+              captionAt: eb.ref('excluded.captionAt'),
               duplicatesDetectedAt: eb.ref('excluded.duplicatesDetectedAt'),
               facesRecognizedAt: eb.ref('excluded.facesRecognizedAt'),
               metadataExtractedAt: eb.ref('excluded.metadataExtractedAt'),

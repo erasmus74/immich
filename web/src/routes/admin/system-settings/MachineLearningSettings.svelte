@@ -4,6 +4,7 @@
   import SettingAccordion from '#lib/components/shared-components/settings/SettingAccordion.svelte';
   import SettingInputField from '#lib/components/shared-components/settings/SettingInputField.svelte';
   import SettingSelect from './SettingSelect.svelte';
+  import SettingTextarea from './SettingTextarea.svelte';
   import SettingSwitch from '#lib/components/shared-components/settings/SettingSwitch.svelte';
   import SettingButtonsRow from '#lib/components/shared-components/settings/SystemConfigButtonRow.svelte';
   import { SettingInputFieldType } from '#lib/constants.ts';
@@ -20,6 +21,9 @@
 
   const disabled = $derived(featureFlagsManager.value.configFile);
   let configToEdit = $state(cloneDeep(config));
+  const captioningDisabled = $derived(
+    disabled || !configToEdit.machineLearning.enabled || !configToEdit.machineLearning.captioning.enabled,
+  );
 </script>
 
 <div class="mt-2">
@@ -335,6 +339,98 @@
             disabled={disabled || !configToEdit.machineLearning.enabled || !configToEdit.machineLearning.ocr.enabled}
             isEdited={configToEdit.machineLearning.ocr.maxResolution !== config.machineLearning.ocr.maxResolution}
           />
+        </div>
+      </SettingAccordion>
+
+      <SettingAccordion
+        key="captioning"
+        title={$t('admin.machine_learning_captioning')}
+        subtitle={$t('admin.machine_learning_captioning_description')}
+      >
+        <div class="mt-4 ml-4 flex flex-col gap-4">
+          <SettingSwitch
+            title={$t('admin.machine_learning_captioning_enabled')}
+            subtitle={$t('admin.machine_learning_captioning_enabled_description')}
+            bind:checked={configToEdit.machineLearning.captioning.enabled}
+            disabled={disabled || !configToEdit.machineLearning.enabled}
+          />
+
+          <hr />
+
+          <SettingInputField
+            inputType={SettingInputFieldType.TEXT}
+            label={$t('admin.machine_learning_captioning_model')}
+            description={$t('admin.machine_learning_captioning_model_description')}
+            placeholder="Qwen/Qwen3-VL-2B-Instruct"
+            bind:value={configToEdit.machineLearning.captioning.modelName}
+            required={true}
+            disabled={captioningDisabled}
+            isEdited={configToEdit.machineLearning.captioning.modelName !== config.machineLearning.captioning.modelName}
+          />
+
+          <SettingInputField
+            inputType={SettingInputFieldType.TEXT}
+            label={$t('admin.machine_learning_captioning_fallback_model')}
+            description={$t('admin.machine_learning_captioning_fallback_model_description')}
+            bind:value={configToEdit.machineLearning.captioning.fallbackModel}
+            disabled={captioningDisabled}
+            isEdited={configToEdit.machineLearning.captioning.fallbackModel !==
+              config.machineLearning.captioning.fallbackModel}
+          />
+
+          <SettingTextarea
+            label={$t('admin.machine_learning_captioning_prompt')}
+            description={$t('admin.machine_learning_captioning_prompt_description')}
+            bind:value={configToEdit.machineLearning.captioning.prompt}
+            disabled={captioningDisabled}
+            isEdited={configToEdit.machineLearning.captioning.prompt !== config.machineLearning.captioning.prompt}
+          />
+
+          <SettingInputField
+            inputType={SettingInputFieldType.NUMBER}
+            label={$t('admin.machine_learning_captioning_max_tokens')}
+            description={$t('admin.machine_learning_captioning_max_tokens_description')}
+            bind:value={configToEdit.machineLearning.captioning.maxTokens}
+            min={16}
+            max={1024}
+            disabled={captioningDisabled}
+            isEdited={configToEdit.machineLearning.captioning.maxTokens !== config.machineLearning.captioning.maxTokens}
+          />
+
+          <div class="mb-4 w-full">
+            <div class="flex place-items-center gap-1">
+              <label class="min-h-6 text-sm font-medium text-primary" for="captioning-embedding-weight">
+                {$t('admin.machine_learning_captioning_embedding_weight')}
+              </label>
+              {#if configToEdit.machineLearning.captioning.embeddingWeight !== config.machineLearning.captioning.embeddingWeight}
+                <span class="rounded-full bg-orange-100 px-2 text-[10px] text-orange-900">
+                  {$t('unsaved_change')}
+                </span>
+              {/if}
+            </div>
+
+            <p class="pb-2 text-sm immich-form-label" id="captioning-embedding-weight-desc">
+              {$t('admin.machine_learning_captioning_embedding_weight_description')}
+            </p>
+
+            <div class="flex place-items-center gap-3">
+              <input
+                id="captioning-embedding-weight"
+                name="captioning-embedding-weight"
+                class="w-full accent-primary focus-visible:ring"
+                type="range"
+                min="0"
+                max="0.9"
+                step="0.05"
+                aria-describedby="captioning-embedding-weight-desc"
+                bind:value={configToEdit.machineLearning.captioning.embeddingWeight}
+                disabled={captioningDisabled}
+              />
+              <span class="w-10 text-end text-sm">
+                {configToEdit.machineLearning.captioning.embeddingWeight.toFixed(2)}
+              </span>
+            </div>
+          </div>
         </div>
       </SettingAccordion>
       <SettingButtonsRow bind:configToEdit keys={['machineLearning']} {disabled} />

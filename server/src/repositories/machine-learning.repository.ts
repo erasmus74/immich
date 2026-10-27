@@ -15,6 +15,7 @@ export enum ModelTask {
   FACIAL_RECOGNITION = 'facial-recognition',
   SEARCH = 'clip',
   OCR = 'ocr',
+  CAPTION = 'caption',
 }
 
 export enum ModelType {
@@ -58,6 +59,12 @@ export type OcrRequest = {
 };
 export type OcrResponse = { [ModelTask.OCR]: OCR } & VisualResponse;
 
+export type CaptionOptions = ModelOptions & { prompt?: string | null; maxTokens: number };
+export type CaptionRequest = {
+  [ModelTask.CAPTION]: ModelOptions & { options: { prompt: string | null; maxNewTokens: number } };
+};
+export type CaptionResponse = { [ModelTask.CAPTION]: string } & VisualResponse;
+
 export type FacialRecognitionRequest = {
   [ModelTask.FACIAL_RECOGNITION]: {
     [ModelType.DETECTION]: ModelOptions & { options: { minScore: number } };
@@ -72,7 +79,8 @@ export interface Face {
 }
 
 export type FacialRecognitionResponse = { [ModelTask.FACIAL_RECOGNITION]: Face[] } & VisualResponse;
-export type MachineLearningRequest = ClipVisualRequest | ClipTextualRequest | FacialRecognitionRequest | OcrRequest;
+export type MachineLearningRequest =
+  ClipVisualRequest | ClipTextualRequest | FacialRecognitionRequest | OcrRequest | CaptionRequest;
 export type TextEncodingOptions = ModelOptions & { language?: string };
 
 @Injectable()
@@ -223,6 +231,14 @@ export class MachineLearningRepository {
     };
     const response = await this.predict<OcrResponse>({ imagePath }, request);
     return response[ModelTask.OCR];
+  }
+
+  async caption(imagePath: string, { modelName, prompt, maxTokens }: CaptionOptions) {
+    const request = {
+      [ModelTask.CAPTION]: { modelName, options: { prompt: prompt || null, maxNewTokens: maxTokens } },
+    };
+    const response = await this.predict<CaptionResponse>({ imagePath }, request);
+    return response[ModelTask.CAPTION];
   }
 
   private async getFormData(payload: ModelPayload, config: MachineLearningRequest): Promise<FormData> {

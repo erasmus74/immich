@@ -58,6 +58,17 @@ cuda-libs = [
 ]
 
 [project.optional-dependencies]
+# the image captioning engines: Florence-2 (onnxruntime-genai or transformers) and JoyCaption (transformers);
+# transformers 4.x caps huggingface-hub below the 1.0 the core dependencies require, so this stays on 5.x
+caption = [
+    "onnxruntime-genai>=0.6 ; platform_machine == 'x86_64'",
+    "transformers>=5,<6",
+    "torch>=2.4",
+    "torchvision>=0.19",
+    "accelerate>=0.34",
+    "sentencepiece>=0.2",
+    "bitsandbytes>=0.45 ; platform_machine == 'x86_64' or platform_machine == 'aarch64'",
+]
 cpu = ["onnxruntime>=1.23.2,<2"]
 cuda = [
   "onnxruntime-gpu>=1.27.1,<1.28", # TODO: last ORT release supporting CUDA 12.2, also need to handle CUDA 13

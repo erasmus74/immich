@@ -27,6 +27,7 @@ import {
   mdiFileXmlBox,
   mdiFolderMove,
   mdiImageSearch,
+  mdiImageText,
   mdiLibraryShelves,
   mdiOcr,
   mdiPause,
@@ -207,6 +208,11 @@ export const asQueueItem = ($t: MessageFormatter, queue: { name: QueueName }): Q
       icon: mdiOcr,
       title: $t('admin.machine_learning_ocr'),
       subtitle: $t('admin.ocr_job_description'),
+    },
+    [QueueName.Captioning]: {
+      icon: mdiImageText,
+      title: $t('admin.machine_learning_captioning'),
+      subtitle: $t('admin.captioning_job_description'),
     },
     [QueueName.VideoConversion]: {
       icon: mdiVideo,

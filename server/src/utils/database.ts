@@ -524,6 +524,14 @@ export function searchAssetBuilderLegacy(kysely: Kysely<DB>, options: AssetSearc
         .innerJoin('ocr_search', 'asset.id', 'ocr_search.assetId')
         .where(() => sql`f_unaccent(ocr_search.text) %>> f_unaccent(${tokenizeForSearch(options.ocr!).join(' ')})`),
     )
+    .$if(!!options.caption, (qb) =>
+      qb
+        .innerJoin('asset_caption', 'asset.id', 'asset_caption.assetId')
+        .where(
+          () =>
+            sql`f_unaccent(asset_caption."searchText") %>> f_unaccent(${tokenizeForSearch(options.caption!).join(' ')})`,
+        ),
+    )
     .$if(!!options.type, (qb) => qb.where('asset.type', '=', options.type!))
     .$if(options.isFavorite !== undefined, (qb) => qb.where('asset.isFavorite', '=', options.isFavorite!))
     .$if(options.isOffline !== undefined, (qb) => qb.where('asset.isOffline', '=', options.isOffline!))
@@ -771,6 +779,18 @@ function branchPredicates(eb: AssetExpressionBuilder, branch: SearchFilterBranch
               .whereRef('ocr_search.assetId', '=', 'asset.id')
               .where(
                 sql<SqlBool>`f_unaccent(ocr_search.text) %>> f_unaccent(${tokenizeForSearch(branch.ocr.matches).join(' ')})`,
+              ),
+          ),
+        ]
+      : []),
+    ...(branch.caption
+      ? [
+          eb.exists(
+            eb
+              .selectFrom('asset_caption')
+              .whereRef('asset_caption.assetId', '=', 'asset.id')
+              .where(
+                sql<SqlBool>`f_unaccent(asset_caption."searchText") %>> f_unaccent(${tokenizeForSearch(branch.caption.matches).join(' ')})`,
               ),
           ),
         ]

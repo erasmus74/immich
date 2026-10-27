@@ -7,6 +7,7 @@ import { AssetMediaService } from 'src/services/asset-media.service.js';
 import { AssetService } from 'src/services/asset.service.js';
 import { AuthAdminService } from 'src/services/auth-admin.service.js';
 import { AuthService } from 'src/services/auth.service.js';
+import { CaptionService } from 'src/services/caption.service.js';
 import { CliService } from 'src/services/cli.service.js';
 import { ClusterGroupService } from 'src/services/cluster-group.service.js';
 import { DatabaseBackupService } from 'src/services/database-backup.service.js';
@@ -63,6 +64,7 @@ export const services = [
   AssetService,
   AuthService,
   AuthAdminService,
+  CaptionService,
   CliService,
   DatabaseBackupService,
   DatabaseService,

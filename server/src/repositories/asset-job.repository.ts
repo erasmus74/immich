@@ -260,6 +260,15 @@ export class AssetJobRepository {
       .executeTakeFirst();
   }
 
+  @GenerateSql({ params: [DummyValue.UUID] })
+  getForCaption(id: string) {
+    return this.db
+      .selectFrom('asset')
+      .select((eb) => ['asset.visibility', withFilePath(eb, AssetFileType.Preview).as('previewFile')])
+      .where('asset.id', '=', id)
+      .executeTakeFirst();
+  }
+
   @GenerateSql({ params: [[DummyValue.UUID]] })
   getForSyncAssets(ids: string[]) {
     return this.db
@@ -460,6 +469,21 @@ export class AssetJobRepository {
         qb
           .innerJoin('asset_job_status', 'asset_job_status.assetId', 'asset.id')
           .where('asset_job_status.ocrAt', 'is', null),
+      )
+      .where('asset.deletedAt', 'is', null)
+      .where('asset.visibility', '!=', AssetVisibility.Hidden)
+      .stream();
+  }
+
+  @GenerateSql({ params: [], stream: true })
+  streamForCaptionJob(force?: boolean) {
+    return this.db
+      .selectFrom('asset')
+      .select(['asset.id'])
+      .$if(!force, (qb) =>
+        qb
+          .innerJoin('asset_job_status', 'asset_job_status.assetId', 'asset.id')
+          .where('asset_job_status.captionAt', 'is', null),
       )
       .where('asset.deletedAt', 'is', null)
       .where('asset.visibility', '!=', AssetVisibility.Hidden)

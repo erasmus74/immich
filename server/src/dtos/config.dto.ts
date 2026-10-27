@@ -205,6 +205,7 @@ const AdminConfigSchemaWithVisibility = z
         library: AdminConfigJobSettingsSchema,
         notifications: AdminConfigJobSettingsSchema,
         ocr: AdminConfigJobSettingsSchema,
+        captioning: AdminConfigJobSettingsSchema,
         workflow: AdminConfigJobSettingsSchema,
         editor: AdminConfigJobSettingsSchema,
         integrityCheck: AdminConfigJobSettingsSchema,
@@ -270,6 +271,17 @@ const AdminConfigSchemaWithVisibility = z
             .describe('Minimum confidence score for text recognition')
             .meta({ format: 'double' }),
         }).meta({ id: 'AdminConfigOcrDto' }),
+        captioning: AdminConfigMachineLearningModelSchema.extend({
+          fallbackModel: z.string().describe('Fallback model to use if the primary model fails, empty to disable'),
+          prompt: z.string().describe('Prompt for the captioning model, empty to use the engine default'),
+          maxTokens: z.int().min(16).max(1024).describe('Maximum number of tokens to generate'),
+          embeddingWeight: z
+            .number()
+            .min(0)
+            .max(0.9)
+            .describe('Weight of the caption embedding when blending with the image embedding')
+            .meta({ format: 'double' }),
+        }).meta({ id: 'AdminConfigCaptioningDto' }),
       })
       .meta({ id: 'AdminConfigMachineLearningDto' }),
     map: z
@@ -647,6 +659,7 @@ export const defaults = Object.freeze<SystemConfig>({
     library: { concurrency: 5 },
     notifications: { concurrency: 5 },
     ocr: { concurrency: 1 },
+    captioning: { concurrency: 1 },
     workflow: { concurrency: 5 },
     editor: { concurrency: 2 },
     integrityCheck: { concurrency: 1 },
@@ -684,6 +697,14 @@ export const defaults = Object.freeze<SystemConfig>({
       minDetectionScore: 0.5,
       minRecognitionScore: 0.8,
       maxResolution: 736,
+    },
+    captioning: {
+      enabled: true,
+      modelName: 'Qwen/Qwen3-VL-2B-Instruct',
+      fallbackModel: '',
+      prompt: '',
+      maxTokens: 120,
+      embeddingWeight: 0.3,
     },
   },
   map: {

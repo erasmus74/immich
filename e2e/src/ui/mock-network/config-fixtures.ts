@@ -90,6 +90,14 @@ export const adminConfig = {
     urls: ['http://immich-machine-learning:3003'],
     availabilityChecks: { enabled: true, timeout: 2000, interval: 30_000 },
     clip: { enabled: true, modelName: 'ViT-B-32__openai' },
+    captioning: {
+      enabled: true,
+      modelName: 'Qwen/Qwen3-VL-2B-Instruct',
+      fallbackModel: '',
+      prompt: '',
+      maxTokens: 120,
+      embeddingWeight: 0.3,
+    },
     duplicateDetection: { enabled: true, maxDistance: 0.01 },
     facialRecognition: { enabled: true, modelName: 'buffalo_l', minScore: 0.7, maxDistance: 0.5, minFaces: 3 },
     ocr: {

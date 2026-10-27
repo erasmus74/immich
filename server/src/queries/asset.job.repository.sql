@@ -508,6 +508,24 @@ from
 where
   "asset"."id" = $1
 
+-- AssetJobRepository.getForCaption
+select
+  "asset"."visibility",
+  (
+    select
+      "asset_file"."path"
+    from
+      "asset_file"
+    where
+      "asset_file"."assetId" = "asset"."id"
+      and "asset_file"."type" = 'preview'
+      and "asset_file"."isEdited" = false
+  ) as "previewFile"
+from
+  "asset"
+where
+  "asset"."id" = $1
+
 -- AssetJobRepository.getForSyncAssets
 select
   "asset"."id",
@@ -851,6 +869,17 @@ from
   inner join "asset_job_status" on "asset_job_status"."assetId" = "asset"."id"
 where
   "asset_job_status"."ocrAt" is null
+  and "asset"."deletedAt" is null
+  and "asset"."visibility" != $1
+
+-- AssetJobRepository.streamForCaptionJob
+select
+  "asset"."id"
+from
+  "asset"
+  inner join "asset_job_status" on "asset_job_status"."assetId" = "asset"."id"
+where
+  "asset_job_status"."captionAt" is null
   and "asset"."deletedAt" is null
   and "asset"."visibility" != $1
 

@@ -76,6 +76,11 @@
       missingText: $t('missing'),
       disabled: !machineLearning.ocr.enabled,
     },
+    [QueueName.Captioning]: {
+      allText: $t('all'),
+      missingText: $t('missing'),
+      disabled: !machineLearning.captioning.enabled,
+    },
     [QueueName.VideoConversion]: {
       allText: $t('all'),
       missingText: $t('missing'),

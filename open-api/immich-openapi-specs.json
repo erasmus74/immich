@@ -11980,6 +11980,31 @@
             }
           },
           {
+            "name": "caption",
+            "required": false,
+            "in": "query",
+            "description": "Filter by caption text",
+            "x-immich-history": [
+              {
+                "version": "v1",
+                "state": "Added"
+              },
+              {
+                "version": "v2",
+                "state": "Stable"
+              },
+              {
+                "version": "v3.2.0",
+                "state": "Deprecated"
+              }
+            ],
+            "x-immich-state": "Deprecated",
+            "deprecated": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "city",
             "required": false,
             "in": "query",
@@ -18917,6 +18942,48 @@
         ],
         "type": "object"
       },
+      "AdminConfigCaptioningDto": {
+        "properties": {
+          "embeddingWeight": {
+            "description": "Weight of the caption embedding when blending with the image embedding",
+            "format": "double",
+            "maximum": 0.9,
+            "minimum": 0,
+            "type": "number"
+          },
+          "enabled": {
+            "description": "Whether the task is enabled",
+            "type": "boolean"
+          },
+          "fallbackModel": {
+            "description": "Fallback model to use if the primary model fails, empty to disable",
+            "type": "string"
+          },
+          "maxTokens": {
+            "description": "Maximum number of tokens to generate",
+            "maximum": 1024,
+            "minimum": 16,
+            "type": "integer"
+          },
+          "modelName": {
+            "description": "Name of the model to use",
+            "type": "string"
+          },
+          "prompt": {
+            "description": "Prompt for the captioning model, empty to use the engine default",
+            "type": "string"
+          }
+        },
+        "required": [
+          "embeddingWeight",
+          "enabled",
+          "fallbackModel",
+          "maxTokens",
+          "modelName",
+          "prompt"
+        ],
+        "type": "object"
+      },
       "AdminConfigClipDto": {
         "properties": {
           "enabled": {
@@ -19447,6 +19514,9 @@
           "backgroundTask": {
             "$ref": "#/components/schemas/AdminConfigJobSettingsDto"
           },
+          "captioning": {
+            "$ref": "#/components/schemas/AdminConfigJobSettingsDto"
+          },
           "editor": {
             "$ref": "#/components/schemas/AdminConfigJobSettingsDto"
           },
@@ -19492,6 +19562,7 @@
         },
         "required": [
           "backgroundTask",
+          "captioning",
           "editor",
           "faceDetection",
           "integrityCheck",
@@ -19612,6 +19683,9 @@
           "availabilityChecks": {
             "$ref": "#/components/schemas/AdminConfigMachineLearningAvailabilityChecksDto"
           },
+          "captioning": {
+            "$ref": "#/components/schemas/AdminConfigCaptioningDto"
+          },
           "clip": {
             "$ref": "#/components/schemas/AdminConfigClipDto"
           },
@@ -19639,6 +19713,7 @@
         },
         "required": [
           "availabilityChecks",
+          "captioning",
           "clip",
           "duplicateDetection",
           "enabled",
@@ -23246,6 +23321,8 @@
           "VersionCheck",
           "OcrQueueAll",
           "Ocr",
+          "CaptionQueueAll",
+          "Caption",
           "WorkflowAssetTrigger",
           "IntegrityUntrackedFilesQueueAll",
           "IntegrityUntrackedFiles",
@@ -24007,6 +24084,26 @@
               "type": "string"
             },
             "type": "array",
+            "x-immich-history": [
+              {
+                "version": "v1",
+                "state": "Added"
+              },
+              {
+                "version": "v2",
+                "state": "Stable"
+              },
+              {
+                "version": "v3.2.0",
+                "state": "Deprecated"
+              }
+            ],
+            "x-immich-state": "Deprecated"
+          },
+          "caption": {
+            "deprecated": true,
+            "description": "Filter by caption text",
+            "type": "string",
             "x-immich-history": [
               {
                 "version": "v1",
@@ -26763,6 +26860,7 @@
           "notifications",
           "backupDatabase",
           "ocr",
+          "captioning",
           "workflow",
           "integrityCheck",
           "editor"
@@ -26903,6 +27001,9 @@
           "backupDatabase": {
             "$ref": "#/components/schemas/QueueResponseLegacyDto"
           },
+          "captioning": {
+            "$ref": "#/components/schemas/QueueResponseLegacyDto"
+          },
           "duplicateDetection": {
             "$ref": "#/components/schemas/QueueResponseLegacyDto"
           },
@@ -26958,6 +27059,7 @@
         "required": [
           "backgroundTask",
           "backupDatabase",
+          "captioning",
           "duplicateDetection",
           "editor",
           "faceDetection",
@@ -26989,6 +27091,26 @@
               "type": "string"
             },
             "type": "array",
+            "x-immich-history": [
+              {
+                "version": "v1",
+                "state": "Added"
+              },
+              {
+                "version": "v2",
+                "state": "Stable"
+              },
+              {
+                "version": "v3.2.0",
+                "state": "Deprecated"
+              }
+            ],
+            "x-immich-state": "Deprecated"
+          },
+          "caption": {
+            "deprecated": true,
+            "description": "Filter by caption text",
+            "type": "string",
             "x-immich-history": [
               {
                 "version": "v1",
@@ -27963,6 +28085,9 @@
           "albumIds": {
             "$ref": "#/components/schemas/IdsFilter"
           },
+          "caption": {
+            "$ref": "#/components/schemas/StringSimilarityFilter"
+          },
           "checksum": {
             "$ref": "#/components/schemas/StringFilter"
           },
@@ -28071,6 +28196,9 @@
         "properties": {
           "albumIds": {
             "$ref": "#/components/schemas/IdsFilter"
+          },
+          "caption": {
+            "$ref": "#/components/schemas/StringSimilarityFilter"
           },
           "checksum": {
             "$ref": "#/components/schemas/StringFilter"
@@ -29230,6 +29358,26 @@
             ],
             "x-immich-state": "Deprecated"
           },
+          "caption": {
+            "deprecated": true,
+            "description": "Filter by caption text",
+            "type": "string",
+            "x-immich-history": [
+              {
+                "version": "v1",
+                "state": "Added"
+              },
+              {
+                "version": "v2",
+                "state": "Stable"
+              },
+              {
+                "version": "v3.2.0",
+                "state": "Deprecated"
+              }
+            ],
+            "x-immich-state": "Deprecated"
+          },
           "city": {
             "deprecated": true,
             "description": "Filter by city name",
@@ -29962,6 +30110,26 @@
               "type": "string"
             },
             "type": "array",
+            "x-immich-history": [
+              {
+                "version": "v1",
+                "state": "Added"
+              },
+              {
+                "version": "v2",
+                "state": "Stable"
+              },
+              {
+                "version": "v3.2.0",
+                "state": "Deprecated"
+              }
+            ],
+            "x-immich-state": "Deprecated"
+          },
+          "caption": {
+            "deprecated": true,
+            "description": "Filter by caption text",
+            "type": "string",
             "x-immich-history": [
               {
                 "version": "v1",
@@ -33697,6 +33865,18 @@
         ],
         "type": "string"
       },
+      "UserConfigCaptioningDto": {
+        "properties": {
+          "enabled": {
+            "description": "Whether the task is enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
       "UserConfigClipDto": {
         "properties": {
           "enabled": {
@@ -33882,6 +34062,9 @@
       },
       "UserConfigMachineLearningDto": {
         "properties": {
+          "captioning": {
+            "$ref": "#/components/schemas/UserConfigCaptioningDto"
+          },
           "clip": {
             "$ref": "#/components/schemas/UserConfigClipDto"
           },
@@ -33900,6 +34083,7 @@
           }
         },
         "required": [
+          "captioning",
           "clip",
           "duplicateDetection",
           "enabled",

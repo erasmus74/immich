@@ -6,6 +6,7 @@ import { AssetVisibility } from 'src/enum.js';
 import { SearchService } from 'src/services/search.service.js';
 import { AssetFactory } from 'test/factories/asset.factory.js';
 import { AuthFactory } from 'test/factories/auth.factory.js';
+import { PersonFactory } from 'test/factories/person.factory.js';
 import { authStub } from 'test/fixtures/auth.stub.js';
 import { getForAsset } from 'test/mappers.js';
 import { newUuid } from 'test/small.factory.js';
@@ -374,6 +375,152 @@ describe(SearchService.name, () => {
         'test',
         expect.objectContaining({ language: 'de' }),
       );
+    });
+
+    describe('person name parsing', () => {
+      const personGroupId = newUuid();
+
+      beforeEach(() => {
+        mocks.person.getDistinctNames.mockResolvedValue([{ personGroupId, name: 'Alice' }]);
+        mocks.person.getByName.mockResolvedValue([PersonFactory.create({ personGroupId, name: 'Alice' })]);
+      });
+
+      it('should match a person name and search with the stripped remainder', async () => {
+        await sut.searchSmart(authStub.user1, {
+          size: 100,
+          query: 'pictures of alice wearing red lingerie fall boudoir photoshoot',
+        });
+
+        expect(mocks.person.getDistinctNames).toHaveBeenCalledWith(authStub.user1.user.id, { withHidden: false });
+        expect(mocks.person.getByName).toHaveBeenCalledWith(authStub.user1.user.id, 'Alice', { withHidden: false });
+        expect(mocks.machineLearning.encodeText).toHaveBeenCalledWith(
+          'pictures of wearing red lingerie fall boudoir photoshoot',
+          expect.objectContaining({ modelName: expect.any(String) }),
+        );
+        expect(mocks.search.searchSmart).toHaveBeenCalledWith(
+          { page: 1, size: 100 },
+          expect.objectContaining({
+            query: 'pictures of wearing red lingerie fall boudoir photoshoot',
+            personIds: [personGroupId],
+          }),
+        );
+      });
+
+      it('should match multi-word names', async () => {
+        mocks.person.getDistinctNames.mockResolvedValue([{ personGroupId, name: 'Mary Jane' }]);
+        mocks.person.getByName.mockResolvedValue([PersonFactory.create({ personGroupId, name: 'Mary Jane' })]);
+
+        await sut.searchSmart(authStub.user1, { size: 100, query: 'mary jane at the beach' });
+
+        expect(mocks.machineLearning.encodeText).toHaveBeenCalledWith('at the beach', expect.anything());
+        expect(mocks.search.searchSmart).toHaveBeenCalledWith(
+          { page: 1, size: 100 },
+          expect.objectContaining({ query: 'at the beach', personIds: [personGroupId] }),
+        );
+      });
+
+      it('should keep the full query when the stripped remainder is too short', async () => {
+        await sut.searchSmart(authStub.user1, { size: 100, query: 'alice' });
+
+        expect(mocks.machineLearning.encodeText).toHaveBeenCalledWith('alice', expect.anything());
+        expect(mocks.search.searchSmart).toHaveBeenCalledWith(
+          { page: 1, size: 100 },
+          expect.objectContaining({ query: 'alice', personIds: [personGroupId] }),
+        );
+      });
+
+      it('should leave queries without person names unchanged', async () => {
+        await sut.searchSmart(authStub.user1, { size: 100, query: 'red shoes' });
+
+        expect(mocks.person.getByName).not.toHaveBeenCalled();
+        expect(mocks.search.searchSmart).toHaveBeenCalledWith(
+          { page: 1, size: 100 },
+          {
+            query: 'red shoes',
+            size: 100,
+            embedding: '[1, 2, 3]',
+            userIds: [authStub.user1.user.id],
+            viewingUserId: authStub.user1.user.id,
+            visibility: 'not-locked',
+          },
+        );
+      });
+
+      it('should not parse names when person ids are already set', async () => {
+        const explicitId = newUuid();
+
+        await sut.searchSmart(authStub.user1, { size: 100, query: 'alice at the beach', personIds: [explicitId] });
+
+        expect(mocks.person.getDistinctNames).not.toHaveBeenCalled();
+        expect(mocks.machineLearning.encodeText).toHaveBeenCalledWith('alice at the beach', expect.anything());
+        expect(mocks.search.searchSmart).toHaveBeenCalledWith(
+          { page: 1, size: 100 },
+          expect.objectContaining({ query: 'alice at the beach', personIds: [explicitId] }),
+        );
+      });
+
+      it('should match names case-insensitively on punctuation boundaries', async () => {
+        await sut.searchSmart(authStub.user1, { size: 100, query: 'ALICE, at the beach' });
+
+        expect(mocks.search.searchSmart).toHaveBeenCalledWith(
+          { page: 1, size: 100 },
+          expect.objectContaining({ query: ', at the beach', personIds: [personGroupId] }),
+        );
+      });
+
+      it('should apply parsed ids to the v3 filter', async () => {
+        mocks.search.searchSmartV3.mockResolvedValue({ hasNextPage: false, items: [] });
+
+        await sut.searchSmart(authStub.user1, { size: 100, query: 'alice at the beach', filter: {} });
+
+        expect(mocks.machineLearning.encodeText).toHaveBeenCalledWith('at the beach', expect.anything());
+        expect(mocks.search.searchSmartV3).toHaveBeenCalledWith(
+          { take: 100 },
+          {
+            filter: expect.objectContaining({ personIds: { any: [personGroupId] } }),
+            withExif: undefined,
+            embedding: '[1, 2, 3]',
+          },
+          expect.objectContaining({ lockedOwnerId: expect.any(String) }),
+        );
+      });
+
+      it('should skip parsing when the v3 filter already has person ids', async () => {
+        mocks.search.searchSmartV3.mockResolvedValue({ hasNextPage: false, items: [] });
+        const explicitId = newUuid();
+
+        await sut.searchSmart(authStub.user1, {
+          size: 100,
+          query: 'alice at the beach',
+          filter: { personIds: { any: [explicitId] } },
+        });
+
+        expect(mocks.person.getDistinctNames).not.toHaveBeenCalled();
+        expect(mocks.machineLearning.encodeText).toHaveBeenCalledWith('alice at the beach', expect.anything());
+        expect(mocks.search.searchSmartV3).toHaveBeenCalledWith(
+          { take: 100 },
+          expect.objectContaining({ filter: expect.objectContaining({ personIds: { any: [explicitId] } }) }),
+          expect.objectContaining({ lockedOwnerId: expect.any(String) }),
+        );
+      });
+
+      it('should cap matches at 5 names', async () => {
+        const ids = [newUuid(), newUuid(), newUuid(), newUuid(), newUuid(), newUuid()];
+        const names = ['alice', 'amber', 'andy', 'angela', 'anna', 'ashley'];
+        mocks.person.getDistinctNames.mockResolvedValue(
+          names.map((name, index) => ({ personGroupId: ids[index], name })),
+        );
+        mocks.person.getByName.mockImplementation((_userId, name) =>
+          Promise.resolve([PersonFactory.create({ personGroupId: ids[names.indexOf(name)], name })]),
+        );
+
+        await sut.searchSmart(authStub.user1, { size: 100, query: 'alice amber andy angela anna ashley' });
+
+        expect(mocks.search.searchSmart).toHaveBeenCalledWith(
+          { page: 1, size: 100 },
+          expect.objectContaining({ personIds: ids.slice(0, 5) }),
+        );
+      });
     });
   });
 });

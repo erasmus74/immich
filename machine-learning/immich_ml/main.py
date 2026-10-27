@@ -5,6 +5,7 @@ import signal
 import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from fnmatch import fnmatchcase
 from functools import partial
 from typing import Any, AsyncGenerator, Callable
 from zipfile import BadZipFile
@@ -123,6 +124,12 @@ def _names(setting: str | None) -> list[str]:
     return [] if setting is None else [name.strip() for name in setting.split(",")]
 
 
+def _model_disabled(name: str) -> bool:
+    if settings.disabled_models is None:
+        return False
+    return any(fnmatchcase(name, pattern) for pattern in _names(settings.disabled_models))
+
+
 async def update_state() -> AsyncGenerator[None, None]:
     global active_requests, last_called, release
     active_requests += 1
@@ -146,6 +153,8 @@ def get_entries(entries: str = Form()) -> list[InferenceEntry[Any]]:
         raise HTTPException(422, "Invalid request format.")
     if not found:
         raise HTTPException(422, "No model task requested.")
+    if any(_model_disabled(entry.name) for entry in found):
+        raise HTTPException(422, "Model disabled on this instance.")
     return found
 
 

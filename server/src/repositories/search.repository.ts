@@ -99,6 +99,10 @@ export interface SearchOcrOptions {
   ocr?: string;
 }
 
+export interface SearchCaptionOptions {
+  caption?: string;
+}
+
 export interface SearchPeopleOptions {
   personIds?: string[];
 }
@@ -130,7 +134,8 @@ type BaseAssetSearchOptions = SearchDateOptions &
   SearchPeopleOptions &
   SearchTagOptions &
   SearchAlbumOptions &
-  SearchOcrOptions;
+  SearchOcrOptions &
+  SearchCaptionOptions;
 
 export type AssetSearchOptions = Omit<BaseAssetSearchOptions, 'visibility'> &
   SearchRelationOptions & { visibility?: AssetVisibility | 'not-locked' };

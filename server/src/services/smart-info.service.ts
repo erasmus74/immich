@@ -6,7 +6,7 @@ import { SystemConfig } from 'src/dtos/config.dto.js';
 
 import { AssetVisibility, DatabaseLock, ImmichWorker, JobName, JobStatus, QueueName } from 'src/enum.js';
 import { BaseService } from 'src/services/base.service.js';
-import { batched, getCLIPModelInfo, isSmartSearchEnabled } from 'src/utils/misc.js';
+import { batched, getCLIPModelInfo, isCaptioningEnabled, isSmartSearchEnabled } from 'src/utils/misc.js';
 
 @Injectable()
 export class SmartInfoService extends BaseService {
@@ -113,8 +113,47 @@ export class SmartInfoService extends BaseService {
       return JobStatus.Skipped;
     }
 
-    await this.searchRepository.upsert(asset.id, embedding);
+    const finalEmbedding = await this.blendCaptionEmbedding(asset.id, embedding, newConfig.machineLearning);
+    await this.searchRepository.upsert(asset.id, finalEmbedding);
 
     return JobStatus.Success;
+  }
+
+  private async blendCaptionEmbedding(
+    assetId: string,
+    embedding: string,
+    machineLearning: SystemConfig['machineLearning'],
+  ): Promise<string> {
+    try {
+      if (!isCaptioningEnabled(machineLearning) || machineLearning.captioning.embeddingWeight <= 0) {
+        return embedding;
+      }
+
+      const caption = await this.captionRepository.getByAssetId(assetId);
+      if (!caption) {
+        return embedding;
+      }
+
+      const textEmbedding = await this.machineLearningRepository.encodeText(caption.text, {
+        modelName: machineLearning.clip.modelName,
+      });
+      this.logger.verbose(`Blending caption embedding for asset ${assetId}`);
+      return this.blendEmbeddings(embedding, textEmbedding, machineLearning.captioning.embeddingWeight);
+    } catch (error: Error | unknown) {
+      this.logger.warn(`Unable to blend caption embedding for asset ${assetId}, storing image embedding only`, error);
+      return embedding;
+    }
+  }
+
+  private blendEmbeddings(imageEmbedding: string, textEmbedding: string, weight: number): string {
+    const image = JSON.parse(imageEmbedding) as number[];
+    const text = JSON.parse(textEmbedding) as number[];
+    if (image.length !== text.length) {
+      throw new Error(`Embedding length mismatch: ${image.length} != ${text.length}`);
+    }
+
+    const blended = image.map((value, i) => (1 - weight) * value + weight * text[i]);
+    const norm = Math.sqrt(blended.reduce((sum, value) => sum + value * value, 0));
+    return JSON.stringify(norm > 0 ? blended.map((value) => value / norm) : blended);
   }
 }
